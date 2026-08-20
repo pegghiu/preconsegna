@@ -162,14 +162,14 @@ const getCounts = cl => {const r={ok:0,nook:0,controllare:0,non_presente:0,pendi
 
 // ── DB ───────────────────────────────────────────────────────────────────────
 async function dbRead() {
-  const r = await fetch(SB_URL+"/rest/v1/veicoli?id=eq.1&select=data",{headers:SB_HDR});
+  const r = await fetch(SB_URL+"/rest/v1/preconsegna?id=eq.1&select=data",{headers:SB_HDR});
   if(!r.ok){const t=await r.text();throw new Error("SB "+r.status+": "+t.slice(0,80));}
   const rows = await r.json();
   if(!rows||rows.length===0) return {veicoli:[],archivio:[]};
   return rows[0].data||{veicoli:[],archivio:[]};
 }
 async function dbWrite(data) {
-  const r = await fetch(SB_URL+"/rest/v1/veicoli?id=eq.1",{method:"PATCH",headers:SB_HDR,body:JSON.stringify({data,updated_at:new Date().toISOString()})});
+  const r = await fetch(SB_URL+"/rest/v1/preconsegna?id=eq.1",{method:"PATCH",headers:SB_HDR,body:JSON.stringify({data,updated_at:new Date().toISOString()})});
   if(!r.ok){const t=await r.text();throw new Error("SB "+r.status+": "+t.slice(0,80));}
 }
 
