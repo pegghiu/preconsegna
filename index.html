@@ -190,6 +190,7 @@ async function load(manual=false) {
     Object.assign(state, {
       veicoli: db.veicoli||[],
       archivio: db.archivio||[],
+      cestino: db.cestino||[],
       loadError: null,
       syncing: false,
       sync: new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit",second:"2-digit"})
@@ -214,6 +215,38 @@ async function load(manual=false) {
 async function save(veicoli) {
   setState({veicoli});
   try { const db=await dbRead(); await dbWrite({...db,veicoli}); } catch(e){ alert("Errore salvataggio: "+e.message); }
+}
+
+async function addToCestino(item) {
+  try {
+    const db=await dbRead();
+    const now=Date.now();
+    const cestino=(db.cestino||[]).filter(i=>(now-new Date(i.deletedAt).getTime())<30*86400000);
+    cestino.unshift({...item,deletedAt:new Date().toISOString()});
+    await dbWrite({...db,cestino});
+    state.cestino=cestino;
+  } catch(e){console.error("Cestino:",e);}
+}
+async function restoreFromCestino(itemId) {
+  try {
+    const db=await dbRead();
+    const item=(db.cestino||[]).find(i=>i.id===itemId);
+    if(!item) return null;
+    const cestino=(db.cestino||[]).filter(i=>i.id!==itemId);
+    let veicoli=db.veicoli||[];
+    if(item.tipo==="veicolo") veicoli=[item.original,...veicoli];
+    else if(item.tipo==="stato") veicoli=veicoli.map(v=>v.id===item.veicoloId?item.original:v);
+    await dbWrite({...db,veicoli,cestino});
+    return {veicoli,cestino};
+  } catch(e){alert("Errore ripristino: "+e.message);return null;}
+}
+async function deleteFromCestino(itemId) {
+  try {
+    const db=await dbRead();
+    const cestino=(db.cestino||[]).filter(i=>i.id!==itemId);
+    await dbWrite({...db,cestino});
+    return cestino;
+  } catch(e){return state.cestino;}
 }
 async function archiviaVeicolo(v) {
   try {
@@ -687,8 +720,10 @@ function renderDettaglio() {
       if(!isArchived){
         const stBtn=StatusBtn(item.status,()=>{
           const cycle=NP_ITEMS.includes(item.label)?SCYCLE:SCYCLE_NNP;
+          const prevVeicolo=JSON.parse(JSON.stringify(vv));
           const ns=cycle[item.status];
           const cl={...vv.checklist};cl[activeSec]=cl[activeSec].map((it,i)=>i===idx?{...it,status:ns,by:state.op,at:nowTs()}:it);
+          addToCestino({id:"s_"+vv.id+"_"+Date.now(),tipo:"stato",veicoloId:vv.id,label:vv.targa+" → "+item.label+" (era: "+SLABELS[item.status]+")",deletedBy:state.op,original:prevVeicolo});
           const upd={...vv,checklist:cl,log:[...(vv.log||[]),{op:state.op,a:SLABELS[ns]+": "+item.label,t:nowTs()}]};
           updateV(upd);rebuild();
         });
@@ -793,7 +828,12 @@ function renderLista() {
     filtered.forEach(v=>{
       grid.appendChild(renderCard(v,
         ()=>setState({sel:v,view:"dettaglio"}),
-        ()=>{if(confirm("Eliminare "+v.targa+"?"))save(state.veicoli.filter(x=>x.id!==v.id));},
+        async()=>{
+          if(confirm("Eliminare "+v.targa+"?\nPotrai ripristinarlo dal cestino per 30 giorni.")) {
+            await addToCestino({id:"v_"+v.id+"_"+Date.now(),tipo:"veicolo",veicoloId:v.id,label:v.targa+" — "+v.veicolo,deletedBy:state.op,original:v});
+            save(state.veicoli.filter(x=>x.id!==v.id));
+          }
+        },
         ()=>setState({confirmArchivia:v})
       ));
     });
@@ -842,6 +882,9 @@ function renderTopbar() {
   const lavoriBtn=h("button",{style:{background:"#1e2533",color:"#38bdf8",border:"1px solid #0e4d6d",borderRadius:"8px",padding:"8px 11px",fontSize:"13px",position:"relative"},title:"Lista lavori da completare",onClick:()=>setState({showLavori:true})});
   lavoriBtn.textContent="📋";
   if(totDaFare>0){const badge=h("span",{style:{position:"absolute",top:"-5px",right:"-5px",background:"#f87171",color:"#000",borderRadius:"50%",width:"16px",height:"16px",fontSize:"9px",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:"800"}});badge.textContent=totDaFare>99?"99+":totDaFare;lavoriBtn.appendChild(badge);}
+  const cestinoBtn=h("button",{style:{background:"#1e2533",color:"#64748b",border:"1px solid #334155",borderRadius:"8px",padding:"8px 11px",fontSize:"13px",position:"relative"},title:"Cestino",onClick:()=>setState({showCestino:true})});
+  const cestinoIco=h("span");cestinoIco.textContent="🗑️";cestinoBtn.appendChild(cestinoIco);
+  if((state.cestino||[]).length>0){const cb=h("span",{style:{position:"absolute",top:"-4px",right:"-4px",background:"#475569",color:"#fff",borderRadius:"50%",width:"14px",height:"14px",fontSize:"8px",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:"800"}});cb.textContent=(state.cestino||[]).length;cestinoBtn.appendChild(cb);}
   const arcBtn=h("button",{style:{background:"#1e2533",color:"#a78bfa",border:"1px solid #4c1d95",borderRadius:"8px",padding:"8px 11px",fontSize:"13px"},title:"Archivio veicoli venduti",onClick:()=>setState({showArchivio:true})});arcBtn.textContent="📦";
 
   // Export btn
@@ -850,7 +893,7 @@ function renderTopbar() {
   // Nuovo btn
   const nuovoBtn=h("button",{style:{background:"#F59E0B",color:"#000",border:"none",borderRadius:"8px",padding:"9px 14px",fontWeight:"800",fontSize:"12px"},onClick:()=>setState({view:"nuovo"})});nuovoBtn.textContent="+ Nuovo";
 
-  bar.append(ic,ti,syncBtn,statsWrap,avWrap,lavoriBtn,arcBtn,expBtn);
+  bar.append(ic,ti,syncBtn,statsWrap,avWrap,lavoriBtn,cestinoBtn,arcBtn,expBtn);
   if(state.view!=="nuovo")bar.appendChild(nuovoBtn);
   return bar;
 }
@@ -1047,6 +1090,59 @@ function renderLavoriModal() {
   box.append(tabsRow,listWrap,foot);bg.appendChild(box);return bg;
 }
 
+
+function renderCestinoModal() {
+  const bg=h("div",{class:"modal-bg",onClick:e=>{if(e.target===bg)setState({showCestino:false});}});
+  const box=h("div",{style:{background:"#0f1621",border:"1px solid #334155",borderRadius:"16px",padding:"22px",width:"100%",maxWidth:"620px",maxHeight:"90vh",display:"flex",flexDirection:"column",gap:"12px"}});
+  const hdr=h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}});
+  const hl=h("div");
+  const hs=h("div",{style:{color:"#64748b",fontFamily:"monospace",fontSize:"9px",letterSpacing:"2px"}});hs.textContent="CESTINO";
+  const ht=h("div",{style:{color:"#f8fafc",fontSize:"16px",fontWeight:"800"}});ht.textContent="🗑️ Elementi Eliminati";
+  hl.append(hs,ht);
+  const cl2=h("button",{style:{background:"none",border:"none",color:"#475569",fontSize:"20px"},onClick:()=>setState({showCestino:false})});cl2.textContent="✕";
+  hdr.append(hl,cl2);box.appendChild(hdr);
+  const infoBar=h("div",{style:{color:"#475569",fontSize:"11px",background:"#0a0f1a",borderRadius:"8px",padding:"8px 12px"}});
+  infoBar.textContent="Elementi eliminati negli ultimi 30 giorni. 🔄 ripristina · 🗑 elimina definitivamente.";
+  box.appendChild(infoBar);
+  const listWrap=h("div",{style:{overflowY:"auto",flex:"1"}});
+  box.appendChild(listWrap);
+  function rebuild() {
+    listWrap.innerHTML="";
+    const items=state.cestino||[];
+    if(items.length===0){
+      const em=h("div",{style:{color:"#475569",textAlign:"center",padding:"40px 0",fontSize:"14px"}});
+      em.textContent="🗑️ Il cestino è vuoto";listWrap.appendChild(em);return;
+    }
+    items.forEach(item=>{
+      const daysAgo=Math.round((Date.now()-new Date(item.deletedAt).getTime())/86400000);
+      const daysLeft=30-daysAgo;
+      const row=h("div",{style:{display:"flex",alignItems:"center",gap:"10px",padding:"11px 12px",marginBottom:"6px",background:"#0a0f1a",borderRadius:"10px",border:"1px solid #1e2d3d"}});
+      const ico=h("span",{style:{fontSize:"15px",flexShrink:"0"}});ico.textContent=item.tipo==="veicolo"?"🚗":"🔄";
+      const info2=h("div",{style:{flex:"1",minWidth:"0"}});
+      const lbl2=h("div",{style:{color:"#f8fafc",fontSize:"12px",fontWeight:"600",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}});lbl2.textContent=item.label;
+      const meta=h("div",{style:{color:"#475569",fontSize:"10px",marginTop:"2px"}});
+      meta.textContent="Da "+item.deletedBy+" · "+daysAgo+"gg fa · scade tra "+daysLeft+"gg";
+      info2.append(lbl2,meta);
+      const restoreBtn=h("button",{style:{background:"#052e16",border:"1px solid #166634",borderRadius:"7px",color:"#4ade80",padding:"5px 9px",fontSize:"12px",cursor:"pointer",flexShrink:"0"},
+        onClick:async()=>{
+          restoreBtn.textContent="...";restoreBtn.disabled=true;
+          const result=await restoreFromCestino(item.id);
+          if(result){state.veicoli=result.veicoli;state.cestino=result.cestino;rebuild();render();}
+        }});restoreBtn.textContent="🔄";
+      const delBtn=h("button",{style:{background:"#2d1515",border:"1px solid #7f1d1d",borderRadius:"7px",color:"#f87171",padding:"5px 9px",fontSize:"12px",cursor:"pointer",flexShrink:"0"},
+        onClick:async()=>{
+          if(!confirm("Eliminare definitivamente? Non sarà recuperabile."))return;
+          const c=await deleteFromCestino(item.id);
+          state.cestino=c;rebuild();
+        }});delBtn.textContent="🗑";
+      row.append(ico,info2,restoreBtn,delBtn);listWrap.appendChild(row);
+    });
+  }
+  rebuild();
+  const foot2=h("div",{style:{color:"#334155",fontSize:"10px",textAlign:"center"}});foot2.textContent="Eliminazione automatica dopo 30 giorni";
+  box.appendChild(foot2);bg.appendChild(box);return bg;
+}
+
 function renderScadModal(v) {
   let sc=v.scadenza||"", ad=v.alertDays||3;
   const bg=h("div",{class:"modal-bg",onClick:e=>{if(e.target===bg)setState({showScadModal:null});}});
@@ -1118,6 +1214,7 @@ function render() {
 
   if(state.confirmArchivia) app.appendChild(renderConfirmArchivia(state.confirmArchivia));
   if(state.showLavori) app.appendChild(renderLavoriModal());
+  if(state.showCestino) app.appendChild(renderCestinoModal());
   if(state.showArchivio) app.appendChild(renderArchivioModal());
   if(state.showExport) app.appendChild(renderExportModal());
   if(state.showScadModal) app.appendChild(renderScadModal(state.showScadModal));
