@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#070c14;color:#f8fafc;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+body{background:#0a0e15;color:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
 input,select,textarea,button{font-family:inherit}
 button{cursor:pointer}
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -528,12 +528,29 @@ function renderCard(v, onOpen, onDelete, onArchivia) {
   const dl=getDays(v.scadenza),lv=alertLv(dl,v.alertDays||3);
   const urgent=lv==="scaduto"||lv==="oggi"||lv==="warning";
 
-  const card=h("div",{class:"card"+(urgent?" urgent":""),onClick:onOpen});
-  card.addEventListener("mouseenter",e=>{card.style.borderColor=urgent?"#f87171":"#F59E0B";card.style.transform="translateY(-2px)";});
-  card.addEventListener("mouseleave",e=>{card.style.borderColor=urgent?"#7f1d1d":"#1e2d3d";card.style.transform="translateY(0)";});
+  // Colori ispirani al foglio Google
+  const posColors={
+    pronto_vendita:{bg:"#1a1800",border:"#a08000",accent:"#ffd700"},
+    officina:{bg:"#0d1a12",border:"#1a5c2a",accent:"#4ade80"},
+    carrozzeria:{bg:"#1a0f00",border:"#7a3e00",accent:"#fb923c"},
+    lavaggio:{bg:"#0a1220",border:"#1a3a6a",accent:"#60a5fa"},
+    in_sede:{bg:"#071519",border:"#0e3540",accent:"#22d3ee"},
+    in_arrivo:{bg:"#071215",border:"#0e2535",accent:"#38bdf8"},
+    venduto:{bg:"#130d1f",border:"#3b1f6a",accent:"#a78bfa"},
+  };
+  const pc=posColors[v.posizione]||posColors.in_sede;
+  const borderCol=urgent?"#7f1d1d":pc.border;
+
+  const card=h("div",{style:{background:pc.bg,border:"1.5px solid "+borderCol,borderRadius:"14px",padding:"16px",cursor:"pointer",position:"relative",transition:"border-color .2s,transform .15s,box-shadow .2s"},onClick:onOpen});
+  card.addEventListener("mouseenter",()=>{card.style.borderColor=urgent?"#f87171":pc.accent;card.style.transform="translateY(-2px)";card.style.boxShadow="0 4px 20px "+pc.accent+"22";});
+  card.addEventListener("mouseleave",()=>{card.style.borderColor=borderCol;card.style.transform="translateY(0)";card.style.boxShadow="none";});
 
   // Delete btn
   const del=h("button",{style:{position:"absolute",top:"9px",right:"9px",background:"none",border:"none",color:"#334155",fontSize:"14px"},onClick:e=>{e.stopPropagation();onDelete();}});del.textContent="✕";card.appendChild(del);
+  if(v.posizione==="pronto_vendita"){
+    const consTag=h("div",{style:{position:"absolute",top:"-1px",left:"14px",background:"#ffd700",color:"#000",fontSize:"9px",fontWeight:"900",fontFamily:"monospace",letterSpacing:"2px",padding:"2px 8px",borderRadius:"0 0 6px 6px"}});
+    consTag.textContent="🚗 IN CONSEGNA";card.appendChild(consTag);
+  }
 
   // Archive btn
   if(v.posizione==="venduto") {
@@ -827,7 +844,18 @@ function renderLista() {
     gridWrap.innerHTML="";
     const term=(state.search||"").toLowerCase().trim();
     const base=state.fp==="tutti"?state.veicoli:state.veicoli.filter(v=>v.posizione===state.fp);
-    const filtered=base.filter(v=>!term||(v.targa||"").toLowerCase().includes(term)||(v.veicolo||"").toLowerCase().includes(term));
+    const filtered=base
+      .filter(v=>!term||(v.targa||"").toLowerCase().includes(term)||(v.veicolo||"").toLowerCase().includes(term))
+      .sort((a,b)=>{
+        // Pronto vendita sempre in cima
+        const pa=a.posizione==="pronto_vendita"?0:1;
+        const pb=b.posizione==="pronto_vendita"?0:1;
+        if(pa!==pb)return pa-pb;
+        // Poi per urgenza: nook e scadenze prima
+        const ua=getCounts(a.checklist).nook>0||alertLv(getDays(a.scadenza),a.alertDays||3)==="scaduto"?0:1;
+        const ub=getCounts(b.checklist).nook>0||alertLv(getDays(b.scadenza),b.alertDays||3)==="scaduto"?0:1;
+        return ua-ub;
+      });
 
     if(state.veicoli.length===0&&!state.loadError){
       const emp=h("div",{style:{textAlign:"center",padding:"60px 0"}});
@@ -840,8 +868,7 @@ function renderLista() {
       filtered.forEach(v=>{
         grid.appendChild(renderCard(v,
           ()=>setState({sel:v,view:"dettaglio"}),
-          async()=>{if(confirm("Eliminare "+v.targa+"?
-Potrai ripristinarlo dal cestino per 30 giorni.")){await addToCestino({id:"v_"+v.id+"_"+Date.now(),tipo:"veicolo",veicoloId:v.id,label:v.targa+" — "+v.veicolo,deletedBy:state.op,original:v});save(state.veicoli.filter(x=>x.id!==v.id));}},
+          async()=>{if(confirm("Eliminare "+v.targa+"? Potrai ripristinarlo dal cestino per 30 giorni.")){await addToCestino({id:"v_"+v.id+"_"+Date.now(),tipo:"veicolo",veicoloId:v.id,label:v.targa+" — "+v.veicolo,deletedBy:state.op,original:v});save(state.veicoli.filter(x=>x.id!==v.id));}},
           ()=>setState({confirmArchivia:v})
         ));
       });
