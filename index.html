@@ -769,6 +769,7 @@ function renderDettaglio() {
 // ── LISTA ────────────────────────────────────────────────────────────────────
 function renderLista() {
   const wrap=h("div");
+
   // Error banner
   if(state.loadError){
     const err=h("div",{style:{background:"#1a0505",border:"1px solid #7f1d1d",borderRadius:"9px",padding:"10px 14px",marginBottom:"14px",display:"flex",alignItems:"center",gap:"10px"}});
@@ -779,6 +780,7 @@ function renderLista() {
     const rb=h("button",{style:{background:"#f87171",color:"#fff",border:"none",borderRadius:"6px",padding:"5px 12px",fontSize:"11px",fontWeight:"700"},onClick:()=>load(true)});rb.textContent="Riprova";
     err.append(h("span",{}),et,rb);err.children[0].textContent="❌";wrap.appendChild(err);
   }
+
   // Alert scadenze
   const urgenti=state.veicoli.filter(v=>{const d=getDays(v.scadenza),lv=alertLv(d,v.alertDays||3);return lv==="scaduto"||lv==="oggi"||lv==="warning";});
   if(urgenti.length>0){
@@ -792,22 +794,19 @@ function renderLista() {
     });
     wrap.appendChild(ab);
   }
-  // Search bar — sticky, no setState on input (avoids focus loss)
-  const searchWrap=h("div",{style:{position:"sticky",top:"56px",zIndex:"40",background:"#070c14",paddingBottom:"10px",paddingTop:"4px",marginBottom:"4px"}});
+
+  // ── STICKY SEARCH BAR ────────────────────────────────────────────────────
+  const stickyBar=h("div",{style:{position:"sticky",top:"56px",zIndex:"40",background:"#070c14",paddingTop:"6px",paddingBottom:"8px"}});
+  const searchWrap=h("div",{style:{position:"relative"}});
   const searchInp=h("input",{placeholder:"🔍 Cerca targa o veicolo...",style:{width:"100%",background:"#0f1621",border:"1px solid #1e2d3d",borderRadius:"10px",color:"#f8fafc",padding:"10px 36px 10px 14px",fontSize:"13px",outline:"none",boxSizing:"border-box"}});
-  searchInp.value = state.search||"";
-  const clrBtn=h("button",{style:{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#475569",fontSize:"16px",cursor:"pointer",display:state.search?"block":"none"},onClick:()=>{state.search="";searchInp.value="";clrBtn.style.display="none";updateGrid();}});
+  searchInp.value=state.search||"";
+  const clrBtn=h("button",{style:{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#475569",fontSize:"16px",cursor:"pointer",display:(state.search||"")?"block":"none"}});
   clrBtn.textContent="✕";
-  searchInp.addEventListener("input",e=>{
-    state.search=e.target.value;
-    clrBtn.style.display=e.target.value?"block":"none";
-    updateGrid();
-  });
-  searchWrap.style.position="relative";
-  const stickyWrap=h("div",{style:{position:"sticky",top:"56px",zIndex:"40",background:"#070c14",paddingBottom:"10px",paddingTop:"4px",marginBottom:"4px"}});
-  stickyWrap.appendChild(searchWrap);
-  searchWrap.appendChild(searchInp);searchWrap.appendChild(clrBtn);
-  wrap.appendChild(stickyWrap);
+  clrBtn.addEventListener("click",()=>{state.search="";searchInp.value="";clrBtn.style.display="none";rebuildGrid();});
+  searchInp.addEventListener("input",e=>{state.search=e.target.value;clrBtn.style.display=e.target.value?"block":"none";rebuildGrid();});
+  searchWrap.append(searchInp,clrBtn);
+  stickyBar.appendChild(searchWrap);
+  wrap.appendChild(stickyBar);
 
   // Filter tabs
   const tabs=h("div",{style:{display:"flex",gap:"5px",marginBottom:"14px",overflowX:"auto",paddingBottom:"3px"}});
@@ -819,24 +818,23 @@ function renderLista() {
     tb.textContent=p.icon+" "+p.label+" ("+cnt+")";tabs.appendChild(tb);
   });
   wrap.appendChild(tabs);
-  // Cards grid
-  function getFiltered() {
-    const searchTerm=(state.search||"").toLowerCase().trim();
-    return (state.fp==="tutti"?state.veicoli:state.veicoli.filter(v=>v.posizione===state.fp))
-      .filter(v=>!searchTerm||(v.targa||"").toLowerCase().includes(searchTerm)||(v.veicolo||"").toLowerCase().includes(searchTerm));
-  }
-  const filtered=getFiltered();
-  // Container aggiornabile senza re-render completo
-  const gridContainer=h("div");
-  function updateGrid(){
-    gridContainer.innerHTML="";
-    const filtered=getFiltered();
+
+  // ── GRID (aggiornabile senza re-render) ──────────────────────────────────
+  const gridWrap=h("div");
+  wrap.appendChild(gridWrap);
+
+  function rebuildGrid(){
+    gridWrap.innerHTML="";
+    const term=(state.search||"").toLowerCase().trim();
+    const base=state.fp==="tutti"?state.veicoli:state.veicoli.filter(v=>v.posizione===state.fp);
+    const filtered=base.filter(v=>!term||(v.targa||"").toLowerCase().includes(term)||(v.veicolo||"").toLowerCase().includes(term));
+
     if(state.veicoli.length===0&&!state.loadError){
       const emp=h("div",{style:{textAlign:"center",padding:"60px 0"}});
       const ic=h("div",{style:{fontSize:"48px",marginBottom:"12px"}});ic.textContent="🚗";
       const tx=h("div",{style:{color:"#475569",fontSize:"16px",marginBottom:"20px"}});tx.textContent="Nessun veicolo in preconsegna";
       const ab2=h("button",{style:{background:"#F59E0B",color:"#000",border:"none",borderRadius:"11px",padding:"12px 30px",fontWeight:"800",fontSize:"14px"},onClick:()=>setState({view:"nuovo"})});ab2.textContent="+ Aggiungi Veicolo";
-      emp.append(ic,tx,ab2);gridContainer.appendChild(emp);
+      emp.append(ic,tx,ab2);gridWrap.appendChild(emp);
     } else {
       const grid=h("div",{class:"grid"});
       filtered.forEach(v=>{
@@ -847,16 +845,14 @@ Potrai ripristinarlo dal cestino per 30 giorni.")){await addToCestino({id:"v_"+v
           ()=>setState({confirmArchivia:v})
         ));
       });
-      gridContainer.appendChild(grid);
-      if(filtered.length===0){const nf=h("div",{style:{textAlign:"center",color:"#334155",padding:"32px 0",fontSize:"12px"}});nf.textContent="Nessun risultato";gridContainer.appendChild(nf);}
+      gridWrap.appendChild(grid);
+      if(filtered.length===0){const nf=h("div",{style:{textAlign:"center",color:"#334155",padding:"32px 0",fontSize:"12px"}});nf.textContent="Nessun risultato per la ricerca";gridWrap.appendChild(nf);}
     }
   }
-  updateGrid();
-  wrap.appendChild(gridContainer);
+  rebuildGrid();
   return wrap;
 }
-  return wrap;
-}
+
 
 // ── TOPBAR ───────────────────────────────────────────────────────────────────
 function renderTopbar() {
