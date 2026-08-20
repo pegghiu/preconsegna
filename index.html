@@ -814,7 +814,29 @@ function renderLista() {
 
   // ── STICKY SEARCH BAR ────────────────────────────────────────────────────
   const stickyBar=h("div",{style:{position:"sticky",top:"56px",zIndex:"40",background:"#f5f7fa",paddingTop:"6px",paddingBottom:"8px"}});
-  const searchWrap=h("div",{style:{position:"relative"}});
+  const barRow=h("div",{style:{display:"flex",gap:"8px",alignItems:"center"}});
+
+  // Mic button — inline, left of search
+  const buildMicBtn=()=>{
+    const vs=state.voiceState;
+    const micBtn=h("button",{style:{
+      flexShrink:"0",width:"44px",height:"44px",borderRadius:"10px",border:"2px solid",cursor:"pointer",
+      display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:"1px",transition:"all .2s",
+      background: vs==="listening"?"#fef2f2": vs==="thinking"?"#fffbeb":"#ffffff",
+      borderColor: vs==="listening"?"#dc2626": vs==="thinking"?"#d97706":"#d1d9e0",
+    }, onClick: vs ? stopVoice : startVoice});
+    const micIco=h("span",{style:{fontSize:"18px",lineHeight:"1"}});
+    micIco.textContent=vs==="listening"?"🔴":vs==="thinking"?"⏳":"🎤";
+    const micLbl=h("span",{style:{fontSize:"8px",fontFamily:"monospace",fontWeight:"700",
+      color:vs==="listening"?"#dc2626":vs==="thinking"?"#d97706":"#94a3b8",letterSpacing:"0.5px"}});
+    micLbl.textContent=vs==="listening"?"STOP":vs==="thinking"?"...":"VOCE";
+    micBtn.append(micIco,micLbl);
+    return micBtn;
+  };
+  barRow.appendChild(buildMicBtn());
+
+  // Search input
+  const searchWrap=h("div",{style:{position:"relative",flex:"1"}});
   const searchInp=h("input",{placeholder:"🔍 Cerca targa o veicolo...",style:{width:"100%",background:"#ffffff",border:"1.5px solid #d1d9e0",borderRadius:"10px",color:"#1a2332",padding:"10px 36px 10px 14px",fontSize:"13px",outline:"none",boxSizing:"border-box"}});
   searchInp.value=state.search||"";
   const clrBtn=h("button",{style:{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#475569",fontSize:"16px",cursor:"pointer",display:(state.search||"")?"block":"none"}});
@@ -822,7 +844,8 @@ function renderLista() {
   clrBtn.addEventListener("click",()=>{state.search="";searchInp.value="";clrBtn.style.display="none";rebuildGrid();});
   searchInp.addEventListener("input",e=>{state.search=e.target.value;clrBtn.style.display=e.target.value?"block":"none";rebuildGrid();});
   searchWrap.append(searchInp,clrBtn);
-  stickyBar.appendChild(searchWrap);
+  barRow.appendChild(searchWrap);
+  stickyBar.appendChild(barRow);
   wrap.appendChild(stickyBar);
 
   // Filter tabs
@@ -1223,31 +1246,12 @@ function render() {
   else body.appendChild(renderLista());
   app.appendChild(body);
   // Modals
-  // Floating voice button (only on lista)
-  if(state.view==="lista" && state.op) {
-    const vs = state.voiceState;
-    const micBtn = h("button", {style:{
-      position:"fixed", bottom:"24px", right:"24px", width:"62px", height:"62px",
-      borderRadius:"50%", border:"none", cursor:"pointer", zIndex:"100",
-      background: vs==="listening"?"#ef4444": vs==="thinking"?"#F59E0B":"#0f1621",
-      boxShadow: vs?"0 0 0 8px "+(vs==="listening"?"#ef444433":"#F59E0B33")+", 0 4px 20px #00000066":"0 4px 20px #00000066",
-      border: "2px solid "+(vs==="listening"?"#ef4444":vs==="thinking"?"#F59E0B":"#334155"),
-      transition:"all .2s", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"2px"
-    }, onClick: vs ? stopVoice : startVoice});
-    const micIco = h("span",{style:{fontSize:"22px"}});
-    micIco.textContent = vs==="listening"?"🔴": vs==="thinking"?"⏳":"🎤";
-    const micLbl = h("span",{style:{color: vs?"#f8fafc":"#64748b", fontSize:"8px", fontFamily:"monospace", letterSpacing:"0.5px"}});
-    micLbl.textContent = vs==="listening"?"STOP": vs==="thinking"?"...":"VOCE";
-    micBtn.append(micIco, micLbl);
-    app.appendChild(micBtn);
-
-    // Voice transcript bubble
-    if(state.voiceTranscript) {
-      const bubble = h("div",{style:{position:"fixed",bottom:"100px",right:"16px",left:"16px",background:"#0f1621",border:"1px solid #F59E0B",borderRadius:"12px",padding:"12px 16px",zIndex:"99",maxWidth:"400px",marginLeft:"auto"}});
-      const bico = h("div",{style:{color:"#F59E0B",fontSize:"11px",fontFamily:"monospace",marginBottom:"4px"}});bico.textContent="🎤 HAI DETTO";
-      const btxt = h("div",{style:{color:"#f8fafc",fontSize:"13px",fontStyle:"italic"}});btxt.textContent="\""+state.voiceTranscript+"\"";
-      bubble.append(bico,btxt);app.appendChild(bubble);
-    }
+  // Voice transcript bubble (fixed bottom)
+  if(state.voiceTranscript && state.view==="lista") {
+    const bubble = h("div",{style:{position:"fixed",bottom:"16px",left:"16px",right:"16px",background:"#ffffff",border:"2px solid #F59E0B",borderRadius:"12px",padding:"10px 14px",zIndex:"99",maxWidth:"500px",margin:"0 auto",boxShadow:"0 4px 16px rgba(0,0,0,.15)"}});
+    const bico = h("div",{style:{color:"#d97706",fontSize:"10px",fontFamily:"monospace",fontWeight:"700",marginBottom:"3px"}});bico.textContent="🎤 HAI DETTO";
+    const btxt = h("div",{style:{color:"#1e293b",fontSize:"13px",fontStyle:"italic"}});btxt.textContent="\""+state.voiceTranscript+"\"";
+    bubble.append(bico,btxt);app.appendChild(bubble);
   }
 
   if(state.confirmArchivia) app.appendChild(renderConfirmArchivia(state.confirmArchivia));
