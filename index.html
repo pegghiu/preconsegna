@@ -138,15 +138,16 @@ const SECTIONS = [
 const NP_ITEMS = ["SENSORI PARCHEGGIO","RUOTA SCORTA/CRIC/CHIAVI/GANCIO","FISSAGGIO RUOTA DI SCORTA",
   "KIT GONFIAGGIO/GANCIO","ADBLUE","GANCIO TRAINO","TEST RIBALTABILE","REVISIONE BOMBOLE METANO/GPL"];
 
-const SCYCLE = {pending:"ok",ok:"nook",nook:"controllare",controllare:"non_presente",non_presente:"pending"};
-const SCYCLE_NNP = {pending:"ok",ok:"nook",nook:"controllare",controllare:"pending"};
-const SLABELS = {pending:"—",ok:"OK",nook:"NON OK",controllare:"CONTROLLARE",non_presente:"NON PRESENTE"};
+const SCYCLE = {pending:"ok",ok:"nook",nook:"da_fare",da_fare:"controllare",controllare:"non_presente",non_presente:"pending"};
+const SCYCLE_NNP = {pending:"ok",ok:"nook",nook:"da_fare",da_fare:"controllare",controllare:"pending"};
+const SLABELS = {pending:"—",ok:"OK",nook:"NON OK",da_fare:"DA FARE",controllare:"CONTROLLARE",non_presente:"NON PRESENTE"};
 const SCOLORS = {
-  pending:{bg:"#1e2533",text:"#64748b",border:"#334155"},
-  ok:{bg:"#052e16",text:"#4ade80",border:"#166534"},
-  nook:{bg:"#2d1515",text:"#f87171",border:"#7f1d1d"},
-  controllare:{bg:"#2d2000",text:"#fbbf24",border:"#92400e"},
-  non_presente:{bg:"#1a1a2e",text:"#a78bfa",border:"#4c1d95"},
+  pending:     {bg:"#f1f5f9",text:"#64748b",border:"#cbd5e1"},
+  ok:          {bg:"#f0fdf4",text:"#16a34a",border:"#86efac"},
+  nook:        {bg:"#fff5f5",text:"#dc2626",border:"#fca5a5"},
+  da_fare:     {bg:"#eff6ff",text:"#2563eb",border:"#93c5fd"},
+  controllare: {bg:"#fffbeb",text:"#d97706",border:"#fde68a"},
+  non_presente:{bg:"#f5f3ff",text:"#7c3aed",border:"#c4b5fd"},
 };
 const ALERT_OPTS = [1,2,3,5,7,10,14];
 
@@ -609,6 +610,23 @@ function renderCard(v, onOpen, onDelete, onArchivia) {
       const txt=h("div",{style:{flex:"1"}});
       const l=h("span",{style:{color:"#991b1b",fontSize:"12px",fontWeight:"700"}});l.textContent=i.label;txt.appendChild(l);
       if(i.note){const n=h("div",{style:{color:"#dc2626",fontSize:"11px",fontStyle:"italic"}});n.textContent=i.note;txt.appendChild(n);}
+      row.append(dot,txt);sec.appendChild(row);
+    });
+    workBox.appendChild(sec);
+  }
+
+  // DA FARE (blu - non urgente)
+  const wDaFare=[];
+  Object.values(v.checklist).forEach(items=>items.forEach(i=>{if(i.status==="da_fare")wDaFare.push(i);}));
+  if(wDaFare.length>0){
+    const sec=h("div",{style:{marginBottom:"8px"}});
+    const lbl=h("div",{style:{color:"#2563eb",fontSize:"11px",fontWeight:"800",marginBottom:"4px",fontFamily:"monospace"}});lbl.textContent="🔵 DA FARE ("+wDaFare.length+")";sec.appendChild(lbl);
+    wDaFare.forEach(i=>{
+      const row=h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",marginBottom:"3px",padding:"5px 8px",background:"#eff6ff",borderRadius:"6px",border:"1px solid #93c5fd"}});
+      const dot=h("span",{style:{color:"#2563eb",fontWeight:"900",flexShrink:"0"}});dot.textContent="●";
+      const txt=h("div",{style:{flex:"1"}});
+      const l=h("span",{style:{color:"#1d4ed8",fontSize:"12px",fontWeight:"700"}});l.textContent=i.label;txt.appendChild(l);
+      if(i.note){const n=h("div",{style:{color:"#2563eb",fontSize:"12px",fontStyle:"italic",marginTop:"2px"}});n.textContent=i.note;txt.appendChild(n);}
       row.append(dot,txt);sec.appendChild(row);
     });
     workBox.appendChild(sec);
