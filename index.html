@@ -629,11 +629,28 @@ function renderCard(v, onOpen, onDelete, onArchivia) {
   }
 
   if(wOk.length>0){
+    const wOkNote=wOk.filter(i=>i.note&&i.note.trim());
+    const wOkNoNote=wOk.filter(i=>!i.note||!i.note.trim());
     const sec=h("div",{style:{marginBottom:"6px"}});
     const lbl=h("div",{style:{color:"#16a34a",fontSize:"11px",fontWeight:"700",marginBottom:"4px",fontFamily:"monospace"}});lbl.textContent="✅ COMPLETATI ("+wOk.length+")";sec.appendChild(lbl);
-    const okRow=h("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px"}});
-    wOk.forEach(i=>{const chip=h("span",{style:{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:"5px",padding:"2px 7px",color:"#166534",fontSize:"11px"}});chip.textContent=i.label;okRow.appendChild(chip);});
-    sec.appendChild(okRow);workBox.appendChild(sec);
+    // Prima mostra quelli con note
+    if(wOkNote.length>0){
+      wOkNote.forEach(i=>{
+        const row=h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",marginBottom:"3px",padding:"5px 8px",background:"#f0fdf4",borderRadius:"6px",border:"1px solid #bbf7d0"}});
+        const dot=h("span",{style:{color:"#16a34a",fontWeight:"900",flexShrink:"0"}});dot.textContent="✓";
+        const txt=h("div",{style:{flex:"1"}});
+        const l=h("span",{style:{color:"#166534",fontSize:"12px",fontWeight:"700"}});l.textContent=i.label;txt.appendChild(l);
+        const n=h("div",{style:{color:"#15803d",fontSize:"11px",fontStyle:"italic"}});n.textContent=i.note;txt.appendChild(n);
+        row.append(dot,txt);sec.appendChild(row);
+      });
+    }
+    // Poi quelli senza note come chips compatte
+    if(wOkNoNote.length>0){
+      const chipRow=h("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px",marginTop:wOkNote.length>0?"4px":"0"}});
+      wOkNoNote.forEach(i=>{const chip=h("span",{style:{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:"5px",padding:"2px 7px",color:"#166534",fontSize:"11px"}});chip.textContent=i.label;chipRow.appendChild(chip);});
+      sec.appendChild(chipRow);
+    }
+    workBox.appendChild(sec);
   }
 
   if(wPend.length>0){
@@ -688,7 +705,7 @@ function renderDettaglio() {
     wrap.appendChild(navBar);
 
     // Banner posizione + scadenza
-    const banner=h("div",{style:{background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:"12px",padding:"14px 16px",marginBottom:"14px"}});
+    const banner=h("div",{style:{background:"#f1f5f9",border:"1.5px solid #e2e8f0",borderRadius:"12px",padding:"14px 16px",marginBottom:"14px"}});
     const banRow=h("div",{style:{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}});
     banRow.appendChild(PosBadge(vv.posizione,true));
     if(!isArchived){
@@ -710,9 +727,9 @@ function renderDettaglio() {
     const hdr=h("div",{style:{display:"flex",alignItems:"center",gap:"10px",marginBottom:"14px",flexWrap:"wrap"}});
     const backBtn=h("button",{style:{background:"#1e293b",border:"none",color:"#ffffff",borderRadius:"9px",padding:"9px 18px",fontSize:"13px",fontWeight:"700",cursor:"pointer",display:"flex",alignItems:"center",gap:"6px"},onClick:goBack});backBtn.textContent="← Torna alla lista";
     const hinfo=h("div",{style:{flex:"1",minWidth:"0"}});
-    const ht=h("div",{style:{color:"#F59E0B",fontFamily:"monospace",letterSpacing:"2px",fontSize:"20px",fontWeight:"900"}});ht.textContent=vv.targa;
-    const hv=h("div",{style:{color:"#f8fafc",fontSize:"18px",fontWeight:"700"}});hv.textContent=vv.veicolo;
-    const hm=h("div",{style:{color:"#475569",fontSize:"11px"}});hm.textContent=(vv.km?vv.km+" km":"")+((vv.km&&vv.operatore)?" · ":"")+(vv.operatore?"👤 "+vv.operatore:"");
+    const ht=h("div",{style:{color:"#0f172a",fontFamily:"monospace",letterSpacing:"2px",fontSize:"22px",fontWeight:"900"}});ht.textContent=vv.targa;
+    const hv=h("div",{style:{color:"#1e293b",fontSize:"18px",fontWeight:"700"}});hv.textContent=vv.veicolo;
+    const hm=h("div",{style:{color:"#64748b",fontSize:"12px"}});hm.textContent=(vv.km?vv.km+" km":"")+((vv.km&&vv.operatore)?" · ":"")+(vv.operatore?"👤 "+vv.operatore:"");
     hinfo.append(ht,hv,hm);
     const allOps=[...new Set((vv.log||[]).map(l=>l.op))];
     const avRow=h("div",{style:{display:"flex",gap:"3px"}});allOps.forEach(o=>avRow.appendChild(Avatar(o,22)));
@@ -731,14 +748,14 @@ function renderDettaglio() {
 
     // Log panel
     if(showLog){
-      const logPanel=h("div",{style:{background:"#0a0f1a",border:"1px solid #1e2d3d",borderRadius:"11px",padding:"14px",marginBottom:"12px",maxHeight:"180px",overflowY:"auto"}});
-      const llbl=h("div",{style:{color:"#64748b",fontSize:"9px",letterSpacing:"2px",marginBottom:"8px",fontFamily:"monospace"}});llbl.textContent="REGISTRO ATTIVITÀ";logPanel.appendChild(llbl);
+      const logPanel=h("div",{style:{background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:"11px",padding:"14px",marginBottom:"12px",maxHeight:"180px",overflowY:"auto"}});
+      const llbl=h("div",{style:{color:"#475569",fontSize:"10px",letterSpacing:"2px",marginBottom:"8px",fontFamily:"monospace",fontWeight:"700"}});llbl.textContent="REGISTRO ATTIVITÀ";logPanel.appendChild(llbl);
       [...(vv.log||[])].reverse().forEach(e=>{
         const row=h("div",{style:{display:"flex",alignItems:"center",gap:"8px",padding:"5px 0",borderBottom:"1px solid #0f1621"}});
         row.appendChild(Avatar(e.op,18));
-        const lo=h("span",{style:{color:opCol(e.op),fontWeight:"600",fontSize:"11px",minWidth:"65px"}});lo.textContent=e.op;
-        const la=h("span",{style:{color:"#94a3b8",fontSize:"11px",flex:"1"}});la.textContent=e.a||e.msg||"";
-        const lt=h("span",{style:{color:"#334155",fontSize:"10px",fontFamily:"monospace"}});lt.textContent=e.t;
+        const lo=h("span",{style:{color:opCol(e.op),fontWeight:"700",fontSize:"12px",minWidth:"65px"}});lo.textContent=e.op;
+        const la=h("span",{style:{color:"#475569",fontSize:"11px",flex:"1"}});la.textContent=e.a||e.msg||"";
+        const lt=h("span",{style:{color:"#64748b",fontSize:"10px",fontFamily:"monospace"}});lt.textContent=e.t;
         row.append(lo,la,lt);logPanel.appendChild(row);
       });
       wrap.appendChild(logPanel);
@@ -762,16 +779,19 @@ function renderDettaglio() {
     const rawItems=vv.checklist[activeSec]||[];
     const prioOrder={nook:0,controllare:1,pending:2,ok:3,non_presente:4};
     const items=[...rawItems].sort((a,b)=>( prioOrder[a.status]??2)-(prioOrder[b.status]??2));
-    const secBox=h("div",{style:{background:"#0a0f1a",border:"1px solid "+sec.color+"30",borderRadius:"12px",overflow:"hidden",marginBottom:"14px"}});
-    const secHdr=h("div",{style:{background:sec.color+"15",padding:"12px 16px",borderBottom:"1px solid "+sec.color+"30"}});
-    const secLbl=h("span",{style:{color:sec.color,fontWeight:"700",fontSize:"14px"}});secLbl.textContent=sec.icon+" "+sec.label;secHdr.appendChild(secLbl);secBox.appendChild(secHdr);
+    const secBox=h("div",{style:{background:"#f8fafc",border:"2px solid "+sec.color+"60",borderRadius:"12px",overflow:"hidden",marginBottom:"14px"}});
+    const secHdr=h("div",{style:{background:sec.color+"20",padding:"12px 16px",borderBottom:"2px solid "+sec.color+"40"}});
+    const secLbl=h("span",{style:{color:sec.color,fontWeight:"800",fontSize:"15px"}});secLbl.textContent=sec.icon+" "+sec.label;secHdr.appendChild(secLbl);secBox.appendChild(secHdr);
     items.forEach((item,idx)=>{
       const row=h("div",{class:"check-item "+item.status});
-      const num=h("span",{style:{color:"#334155",fontSize:"11px",fontFamily:"monospace",minWidth:"20px"}});num.textContent=String(idx+1).padStart(2,"0");
+      const num=h("span",{style:{color:"#94a3b8",fontSize:"11px",fontFamily:"monospace",minWidth:"20px"}});num.textContent=String(idx+1).padStart(2,"0");
       const lbl2=h("span",{style:{flex:"1",color:item.status==="pending"?"#94a3b8":"#1e293b",fontSize:"13px",fontWeight:item.status!=="pending"?"700":"400"}});lbl2.textContent=item.label;
       row.append(num,lbl2);
       if(item.by){const byw=h("div",{style:{display:"flex",alignItems:"center",gap:"3px",opacity:"0.6"}});byw.appendChild(Avatar(item.by,15));const bat=h("span",{style:{color:"#475569",fontSize:"9px"}});bat.textContent=item.at;byw.appendChild(bat);row.appendChild(byw);}
-      if(item.note){const nt=h("span",{style:{color:"#fbbf24",fontSize:"10px",maxWidth:"110px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontStyle:"italic",cursor:"help",title:item.note}});nt.textContent='"'+item.note+'"';row.appendChild(nt);}
+      if(item.note){
+        const noteColor=item.status==="nook"?"#dc2626":item.status==="controllare"?"#d97706":item.status==="ok"?"#15803d":"#64748b";
+        const nt=h("span",{style:{color:noteColor,fontSize:"10px",maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontStyle:"italic",cursor:"help"},title:item.note});nt.textContent='"'+item.note+'"';row.appendChild(nt);
+      }
       // Note button
       const noteBtn=h("button",{style:{background:"none",border:"none",color:item.note?"#fbbf24":"#334155",fontSize:"14px",padding:"0 2px"},onClick:()=>{
         const nt=prompt("Nota per: "+item.label+(item.note?"\n\nNota attuale: "+item.note:""),item.note||"");
@@ -798,8 +818,8 @@ function renderDettaglio() {
 
     // Extra fields
     if(vv.extra){
-      const extraBox=h("div",{style:{background:"#0a0f1a",border:"1px solid #1e2d3d",borderRadius:"12px",padding:"16px",marginBottom:"14px"}});
-      const exLbl=h("div",{style:{color:"#38bdf8",fontWeight:"700",fontSize:"12px",marginBottom:"10px"}});exLbl.textContent="📝 CAMPI AGGIUNTIVI";
+      const extraBox=h("div",{style:{background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:"12px",padding:"16px",marginBottom:"14px"}});
+      const exLbl=h("div",{style:{color:"#0369a1",fontWeight:"700",fontSize:"13px",marginBottom:"10px"}});exLbl.textContent="📝 CAMPI AGGIUNTIVI";
       const exGrid=h("div",{class:"grid2"});
       [{k:"pre1",l:"Campo Iniziale 1"},{k:"pre2",l:"Campo Iniziale 2"},{k:"post1",l:"Campo Finale 1"},{k:"post2",l:"Campo Finale 2"}].forEach(({k,l})=>{
         const fd=h("div",{class:"field"});const lb=h("label");lb.textContent=l;
@@ -811,11 +831,11 @@ function renderDettaglio() {
     }
 
     // Annotazioni
-    const noteBox=h("div",{style:{background:"#0a0f1a",border:"1px solid #1e2d3d",borderRadius:"12px",padding:"16px"}});
+    const noteBox=h("div",{style:{background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:"12px",padding:"16px"}});
     const nHdr=h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"10px"}});
-    const nLbl=h("span",{style:{color:"#8B5CF6",fontWeight:"700",fontSize:"13px"}});nLbl.textContent="📝 ANNOTAZIONI";
+    const nLbl=h("span",{style:{color:"#7c3aed",fontWeight:"700",fontSize:"14px"}});nLbl.textContent="📝 ANNOTAZIONI";
     nHdr.appendChild(nLbl);
-    const noteTA=h("textarea",{style:{width:"100%",background:"#1a2332",border:"1px solid #2a3a4d",borderRadius:"7px",color:"#f8fafc",padding:"10px",fontSize:"12px",resize:"vertical",outline:"none",minHeight:"70px"}});
+    const noteTA=h("textarea",{style:{width:"100%",background:"#ffffff",border:"1.5px solid #d1d9e0",borderRadius:"7px",color:"#1e293b",padding:"10px",fontSize:"13px",resize:"vertical",outline:"none",minHeight:"70px"}});
     noteTA.value=vv.note||"";noteTA.placeholder="Nessuna annotazione";
     noteTA.addEventListener("input",()=>{dirty=true;});
     if(!isArchived){
