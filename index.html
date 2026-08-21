@@ -594,8 +594,8 @@ function renderCard(v, onOpen, onDelete, onArchivia) {
   Object.values(v.checklist).forEach(items=>items.forEach(i=>{
     if(i.status==="nook") wNook.push(i);
     else if(i.status==="controllare") wContr.push(i);
-    else if(i.status==="ok") wOk.push(i);
-    else wPend.push(i);
+    else if(i.status==="ok" && i.by) wOk.push(i); // solo se verde nel foglio
+    // auto-ok (by=null) = silenzioso, non mostrato
   }));
 
   const workBox=h("div",{style:{borderTop:"1px solid #e2e8f0",paddingTop:"10px"}});
